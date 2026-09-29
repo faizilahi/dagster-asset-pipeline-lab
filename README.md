@@ -1,111 +1,32 @@
-# Dagster Asset Pipeline Lab
+# Retail Replenishment Asset Graph
 
-**Author:** [Faiz Elahi](https://github.com/faizilahi) (`faizilahi`) · **Type:** EDUCATIONAL LAB · **Synthetic data only**
+[Faiz Elahi](https://www.linkedin.com/in/faizilahi) — [pendataco.com](https://pendataco.com) — [github.com/faizilahi](https://github.com/faizilahi)
 
----
+Synthetic data only. No vendor-customer employment claim.
 
-## Educational disclaimer
+A Dagster-style asset graph builds store-SKU replenishment proposals. The
+`2024-W37` partition failed its freshness check when on-hand inventory landed
+6 hours late, while demand still computed — proposals would have understated
+need by **1,284** units.
 
-This is an **educational portfolio lab**. Datasets are **synthetic**. It does **not** claim employment at a customer, hospital, bank, SAP shop, or Oracle estate. No real PHI/PII. No live cloud spend. No API keys required.
+## Assets
 
----
+`raw_pos` → `demand_28d` → `on_hand` → `replenishment_proposal` with explicit
+deps in `src/assets.py`.
 
-## Problem statement
+## The partition
 
-Teams want asset-oriented pipelines (raw → staged → mart) with explicit dependencies rather than only task DAGs.
+Partition key `2024-W37` (Mon 2024-09-09). Generator plants POS and on-hand for
+40 stores × 25 SKUs.
 
-**Domain focus:** Warehouse asset lineage
+## The check that failed
 
----
-
-## Why this tool (Dagster-style software-defined assets)
-
-| Task-only DAGs | Asset lineage |
-|---|---|
-| Unclear freshness | Asset materialize timestamps |
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-  GEN[generate_synthetic_data.py]
-  DATA[data/*.csv]
-  RUN[run_lab.py]
-  OUT[output/*.csv]
-  CHART[generate_charts.py]
-  IMG[docs/images/*.png]
-  GEN --> DATA --> RUN --> OUT
-  OUT --> CHART --> IMG
-```
-
-See [`docs/architecture.md`](docs/architecture.md).
-
----
-
-## Dataset dictionary
-
-| Asset | Notes |
-|------|-------|
-| `raw_orders` | Landing |
-| `staged_orders` | Cleaned |
-| `mart_daily` | Gold |
-
----
-
-## Prerequisites
-
-- Python 3.10+
-- Packages in `requirements.txt`
-
----
-
-## How to run
+Asset check `on_hand_fresh_within_2h` failed: inventory file timestamp was
+`08:12Z` vs partition close `02:00Z` + 2h SLA. Gate blocked materialization;
+after a late refresh, proposals total **56,193** units (vs unsafe late-file **57,193**).
 
 ```powershell
-cd "dagster-asset-pipeline-lab"
-python -m venv .venv
-.\\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python scripts/generate_synthetic_data.py
-python src/run_lab.py
-python scripts/generate_charts.py
+python src/run_assets.py
 ```
-
-Inspect `output/summary.csv` and `docs/images/primary_metric.png`.
-
----
-
-## Local vs cloud (honest)
-
-Pure Python asset graph stand-in. No Dagster Cloud/Daemon required. Prefect/Airflow labs remain separate.
-
----
-
-## Results interpretation
-
-Open `output/` CSVs and the PNGs under `docs/images/`. Numbers are synthetic teaching fixtures — use them to explain grain, filters, and control totals, not as real business KPIs.
-
----
-
-## Limitations
-
-- Stand-in engines (DuckDB/SQLite/pandas) replace paid MPP/warehouses where noted.
-- Simplified schemas vs production SAP/Oracle/Hive estates.
-- Charts are matplotlib teaching visuals, not vendor BI embeds.
-
----
-
-## Exercises
-
-1. Add a partitioned asset by day.
-2. Skip rematerialize when fingerprint unchanged.
-3. Compare asset vs task mental models in docs.
-
----
-
-## License / attribution
-
-Educational portfolio content by Faiz Elahi. Synthetic data for teaching only.
-
